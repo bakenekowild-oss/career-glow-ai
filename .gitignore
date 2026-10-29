@@ -1,0 +1,8 @@
+backups/
+pycache/
+__pycache__/
+*.pyc
+*.bak
+*.db
+*.tar.gz
+.env
