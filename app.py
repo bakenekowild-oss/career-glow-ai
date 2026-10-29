@@ -50,26 +50,45 @@ small,.muted{color:var(--muted);font-size:12px}
 .ico{font-size:23px}.feature b{display:block;margin:7px 0 4px}.feature small{line-height:1.4}
 .alert{border:1px solid #705d36;background:#2b2519;padding:13px;border-radius:12px;color:#ffe2a4;margin-top:15px;white-space:pre-wrap;overflow-wrap:anywhere}
 .result{white-space:pre-wrap;line-height:1.75;color:#e1e7fb;overflow-wrap:anywhere}
+.resume-box{background:#fff;color:#111;padding:32px;border-radius:12px;margin-top:15px;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;white-space:pre-wrap;box-shadow:0 4px 20px #0004}
 .spinner{display:none;margin:15px auto;width:27px;height:27px;border:3px solid #343b59;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}
 footer{text-align:center;color:#858eac;font-size:12px;margin-top:25px}
+
+/* PRINT STYLES: Hides everything except the clean resume when saving as PDF */
+@media print {
+  body * { visibility: hidden; }
+  #printableResume, #printableResume * { visibility: visible; }
+  #printableResume { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; background: #fff !important; color: #000 !important; box-shadow: none; }
+}
+
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(10px) rotate(8deg)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:700px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}.hero{padding:25px 19px}.features{grid-template-columns:1fr}.card{padding:17px}}
 """
 
-def page(user=None, result="", error="", filename="", job="", role=""):
+def page(user=None, analysis_report="", recreated_resume="", error="", filename="", job="", role=""):
     err = '<div class="alert">' + html.escape(error) + '</div>' if error else ""
     res = ""
-    if result:
-        res = (
-            '<section class="card wide" id="results" style="margin-top:18px">'
-            '<div class="pill">✦ AI RESUME & ANALYSIS COMPLETE</div>'
-            '<h2 style="margin-top:16px">Your Recreated Resume & Career Report</h2>'
-            '<div class="result">' + html.escape(result) + '</div>'
-            '<button class="secondary" style="margin-top:14px" onclick="window.print()">🖨️ Download / Save as PDF</button>'
-            '</section>'
-        )
+    if analysis_report and recreated_resume:
+        res = f"""
+        <section class="card wide" id="results" style="margin-top:18px">
+          <div class="pill">✦ AI CAREER COACH & RESUME RECREATION</div>
+          <h2 style="margin-top:16px">1. Actions Taken to Recreate Your Resume</h2>
+          <div class="result">{html.escape(analysis_report)}</div>
+
+          <h2 style="margin-top:30px">2. Your Perfectly Recreated ATS-Ready Resume</h2>
+          <p class="muted">Click below to print or save *only* this clean resume as a PDF.</p>
+          <button class="full" style="margin-bottom:15px" onclick="printResume()">📄 Download Clean ATS Resume (PDF)</button>
+          
+          <div class="resume-box" id="printableResume">{html.escape(recreated_resume)}</div>
+        </section>
+        <script>
+        function printResume() {{
+          window.print();
+        }}
+        </script>
+        """
 
     if not user:
         body_Section = """
@@ -243,21 +262,16 @@ def extract_resume(filename, data):
 def ask_ai(resume, job, role):
     key = os.environ.get("OLLAMA_API_KEY", "").strip()
     if not key:
-        raise ValueError("Ollama API key is not set. In Termux run: export OLLAMA_API_KEY='YOUR_KEY'")
-    prompt = f"""You are a thoughtful, honest career coach and expert ATS resume writer. Analyze and recreate this resume.
+        raise ValueError("Ollama API key is not set.")
+    prompt = f"""You are an expert ATS resume writer and career coach. Analyze the user's resume and recreate it.
 Target role: {role or 'Infer a suitable role from the resume'}
-Job description: {job or 'No job description provided; give a general resume review and ATS rewrite.'}
+Job description: {job or 'No job description provided; optimize for general industry ATS standards.'}
 
-Return a well-structured report with these headings:
-1. EXECUTIVE SUMMARY
-2. RESUME STRENGTHS
-3. IMPROVEMENTS WITH EXAMPLES
-4. JOB MATCH
-5. SKILLS TO DEVELOP
-6. ATS AND FORMATTING TIPS
-7. INTERVIEW PRACTICE (5 role-specific questions)
-8. ACTION PLAN
-9. RECREATED ATS-READY RESUME (Write a complete, clean, copy-ready rewritten version of the user's resume tailored to the target role without inventing false employers or degrees)
+You must return your response split into EXACTLY these two labeled sections using this JSON format or clear text headers:
+---REPORT---
+Detail exactly what actions you took to recreate this resume (e.g., restructured bullet points with action verbs, embedded missing keyword skills from the job description, improved summary impact for ATS compatibility, etc.).
+---RESUME---
+Write the complete, clean, professional, ATS-optimized text of the recreated resume (Contact info, Summary, Experience, Education, Skills) ready to be copied and printed. Do not include conversational filler in this section.
 
 RESUME TEXT:
 {resume[:18000]}
@@ -268,7 +282,7 @@ JOB DESCRIPTION:
         "model": MODEL,
         "stream": False,
         "messages": [
-            {"role":"system","content":"You are a professional resume writer and career coach. Be accurate and constructive."},
+            {"role":"system","content":"You are a professional resume writer and career coach. Return the report and the clean resume separated by ---RESUME---."},
             {"role":"user","content":prompt}
         ],
         "options":{"temperature":0.3}
@@ -402,7 +416,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             ctype = self.headers.get("Content-Type", "")
             msg = BytesParser(policy=default).parsebytes(
-                b"Content-Type: " + ctype.encode() + b"\r\nMIME-Version: 1.0\r\r\n" + raw
+                b"Content-Type: " + ctype.encode() + b"\r\nMIME-Version: 1.0\r\n\r\n" + raw
             )
             file_data, filename, job, role = b"", "", "", ""
             for part in msg.iter_parts():
@@ -421,10 +435,18 @@ class Handler(BaseHTTPRequestHandler):
             if len(resume.strip()) < 40:
                 raise ValueError("Very little text was extracted. Try a text-based PDF or DOCX.")
 
-            result = ask_ai(resume, job, role)
+            ai_output = ask_ai(resume, job, role)
+            
+            # Split AI response into Actions Report and Recreated Resume
+            if "---RESUME---" in ai_output:
+                report_part, resume_part = ai_output.split("---RESUME---", 1)
+            else:
+                report_part = ai_output
+                resume_part = ai_output
+
             paywall.consume_credit(user["email"])
             updated_user = paywall.get_or_create_user(user["email"])
-            self.send_html(page(user=updated_user, result=result, filename=filename, job=job, role=role))
+            self.send_html(page(user=updated_user, analysis_report=report_part.strip(), recreated_resume=resume_part.strip(), filename=filename, job=job, role=role))
         except ValueError as e:
             self.send_html(page(user=user, error=str(e)), 400)
         except Exception:
