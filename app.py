@@ -2,24 +2,29 @@
 import os, re, json, html, shutil, subprocess, tempfile, zipfile
 import urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import quote
+from urllib.parse import quote, parse_qs
 from email.parser import BytesParser
 from email.policy import default
 from xml.etree import ElementTree as ET
 
-HOST, PORT = "127.0.0.1", 8501
+import paywall
+
+HOST = os.environ.get("HOST", "0.0.0.0")
+PORT = int(os.environ.get("PORT", "8501"))
 API_URL = "https://ollama.com/api/chat"
 MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:31b")
 MAX_FILE = 8 * 1024 * 1024
+
+paywall.init_db()
 
 STYLE = r"""
 *{box-sizing:border-box}
 :root{color-scheme:dark;--bg:#090b16;--panel:#13172a;--line:#292f4c;--muted:#a3abc6;--white:#f5f6ff;--purple:#a78bfa;--cyan:#67e8f9}
 body{margin:0;background:radial-gradient(ellipse at 15% 0%,#282050 0,transparent 40%),radial-gradient(ellipse at 100% 40%,#102f49 0,transparent 38%),var(--bg);color:var(--white);font:15px system-ui,sans-serif;min-height:100vh}
 main{max-width:1050px;margin:auto;padding:24px 16px 60px}
-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:30px}
+nav{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:30px}
 .logo{font-weight:850;letter-spacing:-.5px;font-size:19px}.logo b{color:var(--cyan)}
-.pill{border:1px solid #3b4260;border-radius:999px;padding:7px 12px;color:#c7d2fe;font-size:12px}
+.pill{border:1px solid #3b4260;border-radius:999px;padding:7px 12px;color:#c7d2fe;font-size:12px;display:inline-block}
 .hero{position:relative;overflow:hidden;padding:30px 24px;border:1px solid #38365d;border-radius:25px;background:linear-gradient(120deg,#211a42d9,#102a3ad9);box-shadow:0 20px 70px #0005;animation:rise .65s ease both}
 .hero:after{content:"✦";position:absolute;right:28px;top:10px;font-size:120px;color:#a78bfa22;animation:float 5s ease-in-out infinite}
 h1{font-size:clamp(30px,6vw,50px);letter-spacing:-1.8px;line-height:1.08;margin:12px 0}
@@ -29,7 +34,7 @@ h2{font-size:20px;margin:0 0 14px}p{line-height:1.6;color:#c2c9df}
 .card{background:#121629eF;border:1px solid var(--line);border-radius:20px;padding:21px;box-shadow:0 12px 35px #0002;animation:rise .7s ease both}
 .card:nth-child(2){animation-delay:.1s}.wide{grid-column:1/-1}
 label{display:block;margin:16px 0 8px;font-weight:700}
-input[type=text],textarea,input[type=file]{width:100%;border:1px solid #353c5b;border-radius:12px;background:#0b1020;color:#fff;padding:12px;font:inherit}
+input[type=text],input[type=email],textarea,input[type=file]{width:100%;border:1px solid #353c5b;border-radius:12px;background:#0b1020;color:#fff;padding:12px;font:inherit}
 textarea{min-height:150px;resize:vertical}
 .drop{border:1.5px dashed #6460a0;border-radius:16px;padding:22px 12px;text-align:center;background:#17172c;transition:.25s}
 .drop:hover{border-color:var(--cyan);background:#1a2038}
@@ -45,7 +50,6 @@ small,.muted{color:var(--muted);font-size:12px}
 .ico{font-size:23px}.feature b{display:block;margin:7px 0 4px}.feature small{line-height:1.4}
 .alert{border:1px solid #705d36;background:#2b2519;padding:13px;border-radius:12px;color:#ffe2a4;margin-top:15px;white-space:pre-wrap;overflow-wrap:anywhere}
 .result{white-space:pre-wrap;line-height:1.75;color:#e1e7fb;overflow-wrap:anywhere}
-.score{font-size:48px;font-weight:900;background:linear-gradient(120deg,#c4b5fd,#67e8f9);background-clip:text;color:transparent}
 .spinner{display:none;margin:15px auto;width:27px;height:27px;border:3px solid #343b59;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}
 footer{text-align:center;color:#858eac;font-size:12px;margin-top:25px}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
@@ -54,65 +58,154 @@ footer{text-align:center;color:#858eac;font-size:12px;margin-top:25px}
 @media(max-width:700px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}.hero{padding:25px 19px}.features{grid-template-columns:1fr}.card{padding:17px}}
 """
 
-
-def page(result="", error="", filename="", job="", role=""):
+def page(user=None, result="", error="", filename="", job="", role=""):
     err = '<div class="alert">' + html.escape(error) + '</div>' if error else ""
     res = ""
     if result:
         res = (
-            '<section class="card wide" id="results">'
-            '<div class="pill">✦ AI ANALYSIS COMPLETE</div>'
-            '<h2 style="margin-top:16px">Your career intelligence report</h2>'
+            '<section class="card wide" id="results" style="margin-top:18px">'
+            '<div class="pill">✦ AI RESUME & ANALYSIS COMPLETE</div>'
+            '<h2 style="margin-top:16px">Your Recreated Resume & Career Report</h2>'
             '<div class="result">' + html.escape(result) + '</div>'
-            '<button class="secondary" onclick="window.print()">Print / Save as PDF</button>'
+            '<button class="secondary" style="margin-top:14px" onclick="window.print()">🖨️ Download / Save as PDF</button>'
             '</section>'
         )
+
+    if not user:
+        body_Section = """
+        <section class="card" style="max-width:480px;margin:22px auto">
+          <div class="pill">🎁 1ST RESUME 100% FREE</div>
+          <h2 style="margin-top:12px">Sign in to build & analyze your resume</h2>
+          <p class="muted">Your first AI resume analysis & recreation is free. Recreating again later costs just ₹1.</p>
+          <form method="post" action="/login">
+            <label for="name">Your Name</label>
+            <input type="text" name="name" id="name" placeholder="e.g. Rahul Sharma" required>
+            <label for="email">Email Address</label>
+            <input type="email" name="email" id="email" placeholder="you@example.com" required>
+            <button class="full" type="submit">✦ Continue Free</button>
+          </form>
+        </section>
+        """
+        nav_right = '<span class="pill">● FREE LOGIN</span>'
+    else:
+        u_email = html.escape(user["email"])
+        free_left = (user["free_used"] == 0)
+        credits = user["paid_credits"]
+        can_use = free_left or (credits > 0)
+
+        badge = "🎁 1 Free Resume Left" if free_left else f"⚡ Credits: {credits} (₹1/recreate)"
+        nav_right = f'<div style="display:flex;gap:8px;align-items:center"><span class="pill">{badge}</span><span class="pill">{u_email}</span><a href="/logout" class="pill" style="text-decoration:none;color:#fca5a5">Logout</a></div>'
+
+        if can_use:
+            btn_label = "✦ Recreate & Analyze Resume (1st FREE)" if free_left else f"✦ Recreate & Analyze Resume (Uses 1 Credit)"
+            body_Section = f"""
+            <form class="layout" method="post" action="/" enctype="multipart/form-data" id="analyzeForm">
+            <section class="card">
+            <h2>01 · Your resume</h2><p class="muted">Upload your current resume to analyze and recreate.</p>
+            <div class="drop"><div style="font-size:32px">☁️</div><b>Choose your resume</b>
+            <p class="muted">PDF or DOCX · Maximum 8 MB</p>
+            <input type="file" name="resume" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+            <div class="muted" id="fileName">{html.escape(filename)}</div></div>
+            <label for="role">Target job title (optional)</label>
+            <input type="text" name="role" id="role" placeholder="e.g. Python Developer" value="{html.escape(role, quote=True)}">
+            </section>
+            <section class="card">
+            <h2>02 · Your next opportunity</h2><p class="muted">Add the job details so the AI can tailor & recreate your resume.</p>
+            <label for="job">Job description (optional)</label>
+            <textarea name="job" id="job" placeholder="Paste the job description here for a more accurate match...">{html.escape(job)}</textarea>
+            <div class="muted">Leave this empty for a general ATS resume recreation.</div>
+            <button class="full" type="submit" id="submitBtn">{btn_label}</button>
+            <div class="spinner" id="spinner"></div>
+            <p class="muted" id="loading" style="text-align:center"></p>
+            </section>
+            </form>
+            """
+        else:
+            body_Section = f"""
+            <section class="card" style="max-width:540px;margin:22px auto;text-align:center">
+              <div class="pill">⚡ RECREATE RESUME UNLOCK</div>
+              <h2 style="margin-top:14px">Recreate Your Resume for Just ₹1</h2>
+              <p class="muted">You have already used your 1st free resume. Unlock another AI resume recreation and full job match report for ₹1.</p>
+              <button class="full" id="pay1RsBtn" onclick="pay1Rs()">💳 Pay ₹1 to Recreate Resume</button>
+              <p class="muted" id="payMsg" style="margin-top:10px"></p>
+            </section>
+            <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+            <script>
+            async function pay1Rs() {{
+              const btn = document.getElementById('pay1RsBtn');
+              const msg = document.getElementById('payMsg');
+              btn.disabled = true;
+              msg.textContent = 'Creating ₹1 payment order...';
+              const res = await fetch('/create-order', {{method:'POST'}});
+              const order = await res.json();
+              if (order.test_mode) {{
+                msg.textContent = 'Test Mode active (no Razorpay keys set): Crediting ₹1...';
+                await fetch('/verify-payment', {{
+                  method:'POST',
+                  headers:{{'Content-Type':'application/json'}},
+                  body: JSON.stringify({{
+                    razorpay_order_id: order.id,
+                    razorpay_payment_id: 'pay_test_' + Date.now(),
+                    razorpay_signature: 'test_sig'
+                  }})
+                }});
+                window.location.reload();
+                return;
+              }}
+              const rzp = new Razorpay({{
+                key: "{paywall.RZP_KEY_ID}",
+                amount: order.amount,
+                currency: order.currency,
+                name: "CareerGlow AI",
+                description: "Recreate Resume (₹1)",
+                order_id: order.id,
+                handler: async function (response) {{
+                  await fetch('/verify-payment', {{
+                    method:'POST',
+                    headers:{{'Content-Type':'application/json'}},
+                    body: JSON.stringify(response)
+                  }});
+                  window.location.reload();
+                }}
+              }});
+              rzp.open();
+              btn.disabled = false;
+            }}
+            </script>
+            """
+
     return r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090b16"><title>CareerGlow AI</title>
+<link rel="manifest" href="/manifest.json">
 <style>""" + STYLE + r"""</style></head><body><main>
-<nav><div class="logo">✦ Career<b>Glow</b> AI</div><span class="pill">● PRIVATE LOCAL APP</span></nav>
+<nav><div class="logo">✦ Career<b>Glow</b> AI</div>""" + nav_right + r"""</nav>
 <section class="hero"><div class="pill">YOUR PERSONAL AI CAREER COACH</div>
 <h1>Make your next move<br><span class="grad">your best move.</span></h1>
-<p class="sub">Turn your resume into a career strategy. Discover your strengths, understand job requirements, and prepare to stand out.</p>
+<p class="sub">1st Resume Free · Recreate tailored ATS resumes anytime for just ₹1.</p>
 </section>
-""" + err + r"""
-<form class="layout" method="post" enctype="multipart/form-data" id="analyzeForm">
-<section class="card">
-<h2>01 · Your resume</h2><p class="muted">Upload a file. No resume text box required.</p>
-<div class="drop"><div style="font-size:32px">☁️</div><b>Choose your resume</b>
-<p class="muted">PDF or DOCX · Maximum 8 MB</p>
-<input type="file" name="resume" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
-<div class="muted" id="fileName">""" + html.escape(filename) + r"""</div></div>
-<label for="role">Target job title (optional)</label>
-<input type="text" name="role" id="role" placeholder="e.g. Python Developer" value=\"""" + html.escape(role, quote=True) + r"""">
-</section>
-<section class="card">
-<h2>02 · Your next opportunity</h2><p class="muted">Add the job details so the AI can tailor its advice.</p>
-<label for="job">Job description (optional)</label>
-<textarea name="job" id="job" placeholder="Paste the job description here for a more accurate match...">""" + html.escape(job) + r"""</textarea>
-<div class="muted">Leave this empty for a general resume review.</div>
-<button class="full" type="submit" id="submitBtn">✦ Analyze my career profile</button>
-<div class="spinner" id="spinner"></div>
-<p class="muted" id="loading" style="text-align:center"></p>
-</section>
-</form>
+""" + err + res + body_Section + r"""
 <div class="features">
-<div class="feature"><span class="ico">🧠</span><b>AI resume review</b><small>Clarity, impact, structure, and actionable improvements.</small></div>
+<div class="feature"><span class="ico">🧠</span><b>AI resume recreation</b><small>ATS-optimized rewrite + actionable improvements.</small></div>
 <div class="feature"><span class="ico">🎯</span><b>Job fit insights</b><small>Strengths, missing skills, and targeted recommendations.</small></div>
 <div class="feature"><span class="ico">🎤</span><b>Interview prep</b><small>Role-specific questions and practice answers.</small></div>
 </div>
-""" + res + r"""
-<footer>CareerGlow AI · Ollama Cloud · Keep your API key private · AI feedback can be imperfect</footer>
+<footer>CareerGlow AI · 1st Resume Free · ₹1 Per Recreation</footer>
 </main>
 <script>
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
 const file=document.querySelector('input[type=file]');
-file.addEventListener('change',()=>document.getElementById('fileName').textContent=file.files[0]?.name||'No file selected');
-document.getElementById('analyzeForm').addEventListener('submit',()=>{
- const b=document.getElementById('submitBtn');b.disabled=true;b.textContent='Analyzing your profile…';
- document.getElementById('spinner').style.display='block';
- document.getElementById('loading').textContent='Reading your resume and preparing personalized feedback…';
-});
+if (file) {
+  file.addEventListener('change',()=>document.getElementById('fileName').textContent=file.files[0]?.name||'No file selected');
+}
+const form=document.getElementById('analyzeForm');
+if (form) {
+  form.addEventListener('submit',()=>{
+   const b=document.getElementById('submitBtn');b.disabled=true;b.textContent='Recreating & analyzing your resume…';
+   document.getElementById('spinner').style.display='block';
+   document.getElementById('loading').textContent='Reading your resume and preparing your tailored ATS version…';
+  });
+}
 </script></body></html>"""
 
 def extract_docx(data):
@@ -150,22 +243,21 @@ def extract_resume(filename, data):
 def ask_ai(resume, job, role):
     key = os.environ.get("OLLAMA_API_KEY", "").strip()
     if not key:
-        raise ValueError("Ollama API key is not set. In Termux run: export OLLAMA_API_KEY='YOUR_KEY' then restart the app.")
-    prompt = f"""You are a thoughtful, honest career coach. Analyze this resume.
+        raise ValueError("Ollama API key is not set. In Termux run: export OLLAMA_API_KEY='YOUR_KEY'")
+    prompt = f"""You are a thoughtful, honest career coach and expert ATS resume writer. Analyze and recreate this resume.
 Target role: {role or 'Infer a suitable role from the resume'}
-Job description: {job or 'No job description provided; give a general resume review.'}
+Job description: {job or 'No job description provided; give a general resume review and ATS rewrite.'}
 
 Return a well-structured report with these headings:
 1. EXECUTIVE SUMMARY
 2. RESUME STRENGTHS
 3. IMPROVEMENTS WITH EXAMPLES
-4. JOB MATCH (if job description supplied; distinguish evidence from assumptions)
+4. JOB MATCH
 5. SKILLS TO DEVELOP
 6. ATS AND FORMATTING TIPS
-7. INTERVIEW PRACTICE (5 role-specific questions and brief answer guidance)
-8. ACTION PLAN (top 5 next steps)
-
-Do not invent qualifications, employers, degrees, or achievements. Clearly mark any example wording that the user must verify. Be specific and constructive. Do not guarantee hiring outcomes.
+7. INTERVIEW PRACTICE (5 role-specific questions)
+8. ACTION PLAN
+9. RECREATED ATS-READY RESUME (Write a complete, clean, copy-ready rewritten version of the user's resume tailored to the target role without inventing false employers or degrees)
 
 RESUME TEXT:
 {resume[:18000]}
@@ -176,7 +268,7 @@ JOB DESCRIPTION:
         "model": MODEL,
         "stream": False,
         "messages": [
-            {"role":"system","content":"You are a professional resume reviewer and career coach. Be accurate and constructive."},
+            {"role":"system","content":"You are a professional resume writer and career coach. Be accurate and constructive."},
             {"role":"user","content":prompt}
         ],
         "options":{"temperature":0.3}
@@ -191,45 +283,126 @@ JOB DESCRIPTION:
             data = json.loads(resp.read().decode("utf-8"))
         text = data.get("message", {}).get("content", "")
         if not text:
-            raise ValueError("The AI service returned an empty response. Check the selected model and API access.")
+            raise ValueError("The AI service returned an empty response.")
         return text
     except urllib.error.HTTPError as e:
         detail = e.read(1200).decode("utf-8", "replace")
-        if e.code in (401, 403):
-            raise ValueError("Ollama rejected the API key or access. Verify your key and model permissions.")
-        if e.code == 404:
-            raise ValueError("Ollama could not find the model. Set OLLAMA_MODEL to a model available to your account.")
         raise ValueError(f"Ollama API error ({e.code}): {detail}")
     except urllib.error.URLError as e:
-        raise ValueError("Could not reach Ollama Cloud. Check your internet connection. Details: " + str(e.reason))
+        raise ValueError("Could not reach Ollama Cloud: " + str(e.reason))
 
 class Handler(BaseHTTPRequestHandler):
-    def send_html(self, body, status=200):
+    def get_current_user(self):
+        email = paywall.verify_session(self.headers.get("Cookie", ""))
+        return paywall.get_or_create_user(email) if email else None
+
+    def send_html(self, body, status=200, cookie=None):
         data = body.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Content-Type-Options", "nosniff")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+        self.wfile.write(data)
+
+    def send_json(self, obj, status=200):
+        data = json.dumps(obj).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
 
     def do_GET(self):
-        self.send_html(page())
+        if self.path == "/logout":
+            self.send_response(303)
+            self.send_header("Set-Cookie", "session_user=; Path=/; Max-Age=0")
+            self.send_header("Location", "/")
+            self.end_headers()
+            return
+        if self.path == "/manifest.json":
+            self.send_json({
+                "name": "CareerGlow AI Resume Builder",
+                "short_name": "CareerGlow",
+                "start_url": "/",
+                "display": "standalone",
+                "background_color": "#090b16",
+                "theme_color": "#090b16",
+                "icons": [{"src": "/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable"}]
+            })
+            return
+        if self.path == "/sw.js":
+            sw = b"self.addEventListener('fetch', function(e) {});"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript")
+            self.send_header("Content-Length", str(len(sw)))
+            self.end_headers()
+            self.wfile.write(sw)
+            return
+        if self.path == "/icon.svg":
+            svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#090b16"/><text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" font-size="260" fill="#67e8f9">&#10022;</text></svg>'
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Content-Length", str(len(svg)))
+            self.end_headers()
+            self.wfile.write(svg)
+            return
+
+        user = self.get_current_user()
+        self.send_html(page(user=user))
 
     def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length) if length > 0 else b""
+
+        if self.path == "/login":
+            params = parse_qs(raw.decode("utf-8", "replace"))
+            email = (params.get("email", [""])[0]).strip().lower()
+            name = (params.get("name", [""])[0]).strip()
+            if not email or "@" not in email:
+                self.send_html(page(error="Please enter a valid email address."), 400)
+                return
+            paywall.get_or_create_user(email, name)
+            token = paywall.sign_session(email)
+            self.send_response(303)
+            self.send_header("Set-Cookie", f"session_user={token}; Path=/; HttpOnly; Max-Age=2592000")
+            self.send_header("Location", "/")
+            self.end_headers()
+            return
+
+        user = self.get_current_user()
+        if not user:
+            self.send_html(page(error="Please sign in first."), 401)
+            return
+
+        if self.path == "/create-order":
+            order = paywall.create_razorpay_1rs_order(user["email"])
+            self.send_json(order)
+            return
+
+        if self.path == "/verify-payment":
+            body = json.loads(raw.decode("utf-8", "replace") or "{}")
+            ok = paywall.verify_and_credit_payment(
+                user["email"],
+                body.get("razorpay_order_id", ""),
+                body.get("razorpay_payment_id", ""),
+                body.get("razorpay_signature", "")
+            )
+            self.send_json({"ok": ok})
+            return
+
         try:
-            length = int(self.headers.get("Content-Length", "0"))
+            if not paywall.can_generate_resume(user["email"]):
+                self.send_html(page(user=user, error="Free resume already used. Please pay ₹1 to recreate your resume."), 402)
+                return
             if length <= 0 or length > MAX_FILE + 1_500_000:
-                self.send_html(page(error="Request too large or empty. Use a file under 8 MB."), 413)
+                self.send_html(page(user=user, error="Request too large or empty. Use a file under 8 MB."), 413)
                 return
-            raw = self.rfile.read(length)
             ctype = self.headers.get("Content-Type", "")
-            if "multipart/form-data" not in ctype:
-                self.send_html(page(error="Please submit the upload form."), 400)
-                return
             msg = BytesParser(policy=default).parsebytes(
-                b"Content-Type: " + ctype.encode() + b"\r\nMIME-Version: 1.0\r\n\r\n" + raw
+                b"Content-Type: " + ctype.encode() + b"\r\nMIME-Version: 1.0\r\r\n" + raw
             )
             file_data, filename, job, role = b"", "", "", ""
             for part in msg.iter_parts():
@@ -244,23 +417,22 @@ class Handler(BaseHTTPRequestHandler):
                     role = payload.decode("utf-8", "replace").strip()[:200]
             if not filename or not file_data:
                 raise ValueError("Choose a resume file first.")
-            if len(file_data) > MAX_FILE:
-                raise ValueError("File exceeds the 8 MB limit.")
             resume = extract_resume(filename, file_data)
             if len(resume.strip()) < 40:
-                raise ValueError("Very little text was extracted. This may be a scanned PDF. Try a text-based PDF or DOCX.")
+                raise ValueError("Very little text was extracted. Try a text-based PDF or DOCX.")
+
             result = ask_ai(resume, job, role)
-            self.send_html(page(result=result, filename=filename, job=job, role=role) + "")
+            paywall.consume_credit(user["email"])
+            updated_user = paywall.get_or_create_user(user["email"])
+            self.send_html(page(user=updated_user, result=result, filename=filename, job=job, role=role))
         except ValueError as e:
-            self.send_html(page(error=str(e)), 400)
+            self.send_html(page(user=user, error=str(e)), 400)
         except Exception:
-            self.send_html(page(error="Something went wrong while processing the file. Check the file format, internet connection, API key, and Termux output."), 500)
+            self.send_html(page(user=user, error="Something went wrong while processing the file."), 500)
 
     def log_message(self, fmt, *args):
         print("%s - %s" % (self.address_string(), fmt % args))
 
 if __name__ == "__main__":
-    print("CareerGlow AI starting...")
-    print("Open http://127.0.0.1:8501 in your phone browser.")
-    print("AI calls use Ollama Cloud; keep your API key private.")
+    print(f"CareerGlow AI running on http://127.0.0.1:{PORT}")
     HTTPServer((HOST, PORT), Handler).serve_forever()
