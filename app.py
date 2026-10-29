@@ -54,7 +54,6 @@ small,.muted{color:var(--muted);font-size:12px}
 .spinner{display:none;margin:15px auto;width:27px;height:27px;border:3px solid #343b59;border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}
 footer{text-align:center;color:#858eac;font-size:12px;margin-top:25px}
 
-/* PRINT STYLES: Hides everything except the clean resume when saving as PDF */
 @media print {
   body * { visibility: hidden; }
   #printableResume, #printableResume * { visibility: visible; }
@@ -267,7 +266,7 @@ def ask_ai(resume, job, role):
 Target role: {role or 'Infer a suitable role from the resume'}
 Job description: {job or 'No job description provided; optimize for general industry ATS standards.'}
 
-You must return your response split into EXACTLY these two labeled sections using this JSON format or clear text headers:
+You must return your response split into EXACTLY these two labeled sections:
 ---REPORT---
 Detail exactly what actions you took to recreate this resume (e.g., restructured bullet points with action verbs, embedded missing keyword skills from the job description, improved summary impact for ATS compatibility, etc.).
 ---RESUME---
@@ -437,7 +436,6 @@ class Handler(BaseHTTPRequestHandler):
 
             ai_output = ask_ai(resume, job, role)
             
-            # Split AI response into Actions Report and Recreated Resume
             if "---RESUME---" in ai_output:
                 report_part, resume_part = ai_output.split("---RESUME---", 1)
             else:
@@ -456,5 +454,5 @@ class Handler(BaseHTTPRequestHandler):
         print("%s - %s" % (self.address_string(), fmt % args))
 
 if __name__ == "__main__":
-    print(f"CareerGlow AI running on http://127.0.0.1:{PORT}")
+    print(f"CareerGlow AI running on http://{HOST}:{PORT}")
     HTTPServer((HOST, PORT), Handler).serve_forever()
