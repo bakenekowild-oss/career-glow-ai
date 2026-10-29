@@ -1,4 +1,4 @@
-#!/usr/init/env python3
+#!/usr/bin/env python3
 import os, re, json, html, shutil, subprocess, tempfile, zipfile, base64
 import urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -365,7 +365,6 @@ JOB DESCRIPTION:
         text = data.get("message", {}).get("content", "")
         if not text:
             raise ValueError("Empty response from AI.")
-        # Strip any stray markdown blocks
         text = re.sub(r'^```html\s*', '', text, flags=re.IGNORECASE)
         text = re.sub(r'^```\s*', '', text)
         text = re.sub(r'```\s*$', '', text)

@@ -117,12 +117,11 @@ def verify_session(cookie_str):
             return part.split("=")[1].strip()
     return None
 
-RZP_KEY_ID = os.environ.get("RZP_KEY_ID", "rzp_test_123456789abcde")
+RZP_KEY_ID = os.environ.get("RZP_KEY_ID", "rzp_test_mockkey")
 RZP_KEY_SECRET = os.environ.get("RZP_KEY_SECRET", "mocksecret")
 
 def create_razorpay_1rs_order(email):
-    # If real Razorpay API keys are configured, create order via Razorpay API
-    if not RZP_KEY_ID.startswith("rzp_test_123") and len(RZP_KEY_SECRET) > 5:
+    if not RZP_KEY_ID.startswith("rzp_test_") and len(RZP_KEY_SECRET) > 5:
         try:
             url = "https://api.razorpay.com/v1/orders"
             payload = json.dumps({"amount": 100, "currency": "INR", "receipt": "rcpt_" + secrets.token_hex(4)}).encode("utf-8")
@@ -136,7 +135,6 @@ def create_razorpay_1rs_order(email):
                 return {"id": data["id"], "amount": 100, "currency": "INR", "key_id": RZP_KEY_ID, "test_mode": False}
         except Exception:
             pass
-    # Fallback mock order so testing never breaks
     return {"id": "order_" + secrets.token_hex(8), "amount": 100, "currency": "INR", "key_id": RZP_KEY_ID, "test_mode": True}
 
 def verify_and_credit_payment(email, order_id, payment_id, signature):
