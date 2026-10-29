@@ -32,7 +32,7 @@ nav{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02),0 2px 4px -1px rgba(0,0,0,0.02)}
 .wide{grid-column:1/-1}
 label{display:block;margin:16px 0 6px;font-weight:600;font-size:14px;color:#334155}
-input[type=text],input[type=email],textarea,input[type=file]{width:100%;border:1px solid var(--border);border-radius:10px;background:#f8fafc;color:var(--text);padding:12px 14px;font:inherit;font-size:14px;transition:all 0.2s}
+input[type=text],input[type=email],input[type=password],textarea,input[type=file]{width:100%;border:1px solid var(--border);border-radius:10px;background:#f8fafc;color:var(--text);padding:12px 14px;font:inherit;font-size:14px;transition:all 0.2s}
 input:focus,textarea:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
 textarea{min-height:140px;resize:vertical}
 .drop{border:2px dashed #cbd5e1;border-radius:12px;padding:24px 16px;text-align:center;background:#f8fafc;transition:0.2s}
@@ -46,36 +46,58 @@ button:disabled{opacity:0.6;cursor:wait}
 small,.muted{color:var(--muted);font-size:13px}
 .alert{border:1px solid #fecaca;background:#fef2f2;padding:14px;border-radius:10px;color:#991b1b;margin-bottom:20px;font-size:14px}
 .result{white-space:pre-wrap;line-height:1.7;color:#334155;font-size:14px}
-.resume-box{background:#fff;color:#0f172a;padding:40px;border-radius:12px;margin-top:20px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;white-space:pre-wrap;border:1px solid var(--border);box-shadow:0 10px 15px -3px rgba(0,0,0,0.05)}
-.resume-box h2, .resume-box h3 { color:#1e3a8a; }
+
+/* EXECUTIVE GRAPHICAL RESUME TEMPLATE */
+.resume-box {
+  background: #ffffff;
+  color: #1e293b;
+  padding: 50px;
+  border-radius: 12px;
+  margin-top: 20px;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  border-top: 6px solid #2563eb;
+}
+.resume-box h2 { font-size: 18px; color: #1e40af; border-bottom: 2px solid #eff6ff; padding-bottom: 6px; margin-top: 24px; text-transform: uppercase; letter-spacing: 0.5px; }
+.resume-box h3 { font-size: 15px; color: #0f172a; margin: 16px 0 4px; }
+.resume-box p { margin: 6px 0; color: #334155; }
+.resume-box ul { margin: 6px 0 14px 20px; padding: 0; }
+.resume-box li { margin-bottom: 5px; color: #334155; }
+.resume-box strong { color: #0f172a; }
+
+.history-item { background: #fff; border: 1px solid var(--border); padding: 18px; border-radius: 12px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
 .spinner{display:none;margin:20px auto;width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite}
 footer{text-align:center;color:var(--muted);font-size:13px;margin-top:40px}
 
 @media print {
   body * { visibility: hidden; }
   #printableResume, #printableResume * { visibility: visible; }
-  #printableResume { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; background: #fff !important; color: #000 !important; border: none; box-shadow: none; }
+  #printableResume { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 30px; background: #fff !important; color: #000 !important; border: none; box-shadow: none; }
 }
 
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:768px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}}
 """
 
-def page(user=None, analysis_report="", recreated_resume="", error="", filename="", job="", role=""):
+def page(user=None, analysis_report="", recreated_resume="", error="", filename="", job="", role="", view_mode="builder"):
     err = f'<div class="alert">{html.escape(error)}</div>' if error else ""
     res = ""
     if analysis_report and recreated_resume:
         res = f"""
         <section class="card wide" style="margin-top:24px">
-          <span class="pill">Analysis & Optimization Report</span>
-          <h2 style="margin-top:14px;color:#0f172a">1. Strategic Recalibration</h2>
+          <span class="pill">AI Recalibration Report</span>
+          <h2 style="margin-top:14px;color:#0f172a">1. Strategic ATS Optimization</h2>
           <div class="result">{html.escape(analysis_report)}</div>
 
           <hr style="border:0;border-top:1px solid var(--border);margin:30px 0">
 
-          <h2 style="color:#0f172a">2. Precision ATS Resume Template</h2>
-          <p class="muted">Formatted for corporate applicant tracking systems and executive review.</p>
-          <button class="btn" style="margin:16px 0;background:#0f172a" onclick="window.print()">📥 Download Clean Resume PDF</button>
+          <h2 style="color:#0f172a">2. Executive Visual Resume Template</h2>
+          <p class="muted">Formatted as a professional graphical template ready for ATS scanning and executive download.</p>
+          <button class="btn" style="margin:16px 0;background:#0f172a" onclick="window.print()">📥 Download Executive Resume PDF</button>
           
           <div class="resume-box" id="printableResume">{recreated_resume}</div>
         </section>
@@ -83,31 +105,79 @@ def page(user=None, analysis_report="", recreated_resume="", error="", filename=
 
     if not user:
         body_Section = """
-        <section class="card" style="max-width:440px;margin:40px auto">
-          <span class="pill">Secure Portal</span>
-          <h2 style="margin-top:12px;color:#0f172a">Sign in to your account</h2>
-          <p class="muted">Access your 1st free precision resume build and history archive.</p>
-          <form method="post" action="/login" style="margin-top:20px">
-            <label for="name">Full Name</label>
-            <input type="text" name="name" id="name" placeholder="Rahul Sharma" required>
-            <label for="email">Email Address</label>
-            <input type="email" name="email" id="email" placeholder="rahul@example.com" required>
-            <button class="full" type="submit">Continue to Dashboard</button>
-          </form>
-        </section>
+        <div class="layout" style="max-width:800px;margin:40px auto">
+          <section class="card">
+            <span class="pill">Sign In</span>
+            <h2 style="margin-top:12px;color:#0f172a">Welcome back</h2>
+            <form method="post" action="/login" style="margin-top:16px">
+              <label for="login_email">Email Address</label>
+              <input type="email" name="email" id="login_email" placeholder="rahul@example.com" required>
+              <label for="login_password">Password</label>
+              <input type="password" name="password" id="login_password" placeholder="••••••••" required>
+              <button class="full" type="submit" style="margin-top:20px">Sign In</button>
+            </form>
+          </section>
+          <section class="card">
+            <span class="pill">Register</span>
+            <h2 style="margin-top:12px;color:#0f172a">Create account</h2>
+            <form method="post" action="/signup" style="margin-top:16px">
+              <label for="reg_name">Full Name</label>
+              <input type="text" name="name" id="reg_name" placeholder="Rahul Sharma" required>
+              <label for="reg_email">Email Address</label>
+              <input type="email" name="email" id="reg_email" placeholder="rahul@example.com" required>
+              <label for="reg_password">Create Password</label>
+              <input type="password" name="password" id="reg_password" placeholder="••••••••" required>
+              <button class="full secondary" type="submit" style="margin-top:20px">Create Account</button>
+            </form>
+          </section>
+        </div>
         """
-        nav_right = '<span class="pill">Guest Session</span>'
+        nav_right = '<span class="pill">Secure Authentication</span>'
     else:
         u_email = html.escape(user["email"])
         free_left = (user["free_used"] == 0)
         credits = user["paid_credits"]
         can_use = free_left or (credits > 0)
-
         badge = "🎁 1 Free Build Available" if free_left else f"⚡ Credits: {credits} (₹1/rebuild)"
-        nav_right = f'<div style="display:flex;gap:12px;align-items:center"><span class="pill">{badge}</span><span style="font-size:14px;font-weight:600">{u_email}</span><a href="/logout" style="color:#dc2626;text-decoration:none;font-size:13px;font-weight:600">Sign out</a></div>'
 
-        if can_use:
-            btn_label = "✦ Generate Precision Resume (1st Free)" if free_left else "✦ Generate Precision Resume (Uses 1 Credit)"
+        nav_right = f'''
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span class="pill">{badge}</span>
+          <a href="/" class="btn" style="padding:6px 12px;font-size:12px">Builder</a>
+          <a href="/history" class="btn secondary" style="padding:6px 12px;font-size:12px;color:#0f172a">My Resumes</a>
+          <span style="font-size:13px;font-weight:600">{u_email}</span>
+          <a href="/logout" style="color:#dc2626;text-decoration:none;font-size:13px;font-weight:600">Sign out</a>
+        </div>
+        '''
+
+        if view_mode == "history":
+            resumes = paywall.get_user_resumes(user["email"])
+            items_html = ""
+            if not resumes:
+                items_html = '<p class="muted" style="text-align:center;padding:40px">No saved resumes yet. Build your first professional resume today!</p>'
+            else:
+                for r in resumes:
+                    safe_role = html.escape(r["role"])
+                    safe_date = html.escape(str(r["created_at"]))
+                    items_html += f"""
+                    <div class="history-item">
+                      <div>
+                        <b style="font-size:15px;color:#0f172a">{safe_role}</b>
+                        <div class="muted" style="font-size:12px">Created on: {safe_date}</div>
+                      </div>
+                      <a href="/view-resume?id={r['id']}" class="btn" style="padding:8px 14px;font-size:13px">View & Download</a>
+                    </div>
+                    """
+            body_Section = f"""
+            <section class="card wide" style="margin-top:20px">
+              <span class="pill">Archive</span>
+              <h2 style="margin-top:12px;color:#0f172a">Your Saved Resumes ({len(resumes)})</h2>
+              <p class="muted">Access, review, and download any of your previous professional AI builds anytime.</p>
+              <div style="margin-top:20px">{items_html}</div>
+            </section>
+            """
+        elif can_use:
+            btn_label = "✦ Generate Executive Resume (1st Free)" if free_left else "✦ Generate Executive Resume (Uses 1 Credit)"
             body_Section = f"""
             <form class="layout" method="post" action="/" enctype="multipart/form-data" id="analyzeForm">
               <section class="card">
@@ -126,7 +196,7 @@ def page(user=None, analysis_report="", recreated_resume="", error="", filename=
 
               <section class="card">
                 <h3 style="margin-top:0;color:#0f172a">Job Description & Alignment</h3>
-                <p class="muted">Paste target requirements for keyword matching.</p>
+                <p class="muted">Paste target requirements for precision ATS keyword matching.</p>
                 <label for="job">Job Description (Optional)</label>
                 <textarea name="job" id="job" placeholder="Paste job requirements here...">{html.escape(job)}</textarea>
                 <button class="full" type="submit" id="submitBtn" style="margin-top:24px">{btn_label}</button>
@@ -139,7 +209,7 @@ def page(user=None, analysis_report="", recreated_resume="", error="", filename=
             body_Section = f"""
             <section class="card" style="max-width:500px;margin:40px auto;text-align:center">
               <span class="pill">Credits Required</span>
-              <h2 style="margin-top:12px;color:#0f172a">Unlock Precision Rebuild</h2>
+              <h2 style="margin-top:12px;color:#0f172a">Unlock Executive Rebuild</h2>
               <p class="muted">You have used your complimentary resume. Add 1 credit for ₹1 to build another tailored version.</p>
               <button class="full" id="pay1RsBtn" onclick="pay1Rs()" style="margin-top:20px">Pay ₹1 via UPI / Card</button>
               <p class="muted" id="payMsg" style="margin-top:12px"></p>
@@ -151,49 +221,58 @@ def page(user=None, analysis_report="", recreated_resume="", error="", filename=
               const msg = document.getElementById('payMsg');
               btn.disabled = true;
               msg.textContent = 'Initializing secure payment...';
-              const res = await fetch('/create-order', {{method:'POST'}});
-              const order = await res.json();
-              if (order.test_mode) {{
-                await fetch('/verify-payment', {{
-                  method:'POST',
-                  headers:{{'Content-Type':'application/json'}},
-                  body: JSON.stringify({{ razorpay_order_id: order.id, razorpay_payment_id: 'pay_test_' + Date.now(), razorpay_signature: 'test' }})
+              try {{
+                const res = await fetch('/create-order', {{method:'POST'}});
+                const order = await res.json();
+                
+                const rzp = new Razorpay({{
+                  key: order.key_id || "{paywall.RZP_KEY_ID}",
+                  amount: order.amount,
+                  currency: order.currency,
+                  name: "CareerGlow AI",
+                  description: "Executive Rebuild Credit (₹1)",
+                  order_id: order.id,
+                  handler: async function (response) {{
+                    msg.textContent = 'Verifying payment...';
+                    const verifyRes = await fetch('/verify-payment', {{
+                      method:'POST',
+                      headers:{{'Content-Type':'application/json'}},
+                      body: JSON.stringify(response)
+                    }});
+                    const verifyData = await verifyRes.json();
+                    if (verifyData.ok) {{
+                      window.location.reload();
+                    }} else {{
+                      msg.textContent = 'Payment verification failed.';
+                      btn.disabled = false;
+                    }}
+                  }},
+                  modal: {{
+                    ondismiss: function() {{
+                      btn.disabled = false;
+                      msg.textContent = 'Payment cancelled.';
+                    }}
+                  }}
                 }});
-                window.location.reload();
-                return;
+                rzp.open();
+              }} catch (err) {{
+                msg.textContent = 'Error starting payment. Please try again.';
+                btn.disabled = false;
               }}
-              const rzp = new Razorpay({{
-                key: "{paywall.RZP_KEY_ID}",
-                amount: order.amount,
-                currency: order.currency,
-                name: "CareerGlow AI",
-                description: "Precision Rebuild Credit",
-                order_id: order.id,
-                handler: async function (response) {{
-                  await fetch('/verify-payment', {{
-                    method:'POST',
-                    headers:{{'Content-Type':'application/json'}},
-                    body: JSON.stringify(response)
-                  }});
-                  window.location.reload();
-                }}
-              }});
-              rzp.open();
-              btn.disabled = false;
             }}
             </script>
             """
 
     return r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CareerGlow AI · Enterprise Resume Studio</title>
+<title>CareerGlow Enterprise Studio</title>
 <link rel="manifest" href="/manifest.json">
 <style>""" + STYLE + r"""</style></head><body><main>
 <nav><div class="logo">Career<span>Glow</span> Enterprise</div>""" + nav_right + r"""</nav>
 <section class="hero">
   <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3)">AI Career Studio</span>
-  <h1>Precision Resume Engine</h1>
-  <p>Engineered for high-ranking corporate ATS screeners and executive recruitment.</p>
+  <h1>Executive Graphical Resume Suite</h1>
+  <p>Engineered with precision templates for high-ranking corporate ATS screeners.</p>
 </section>
 """ + err + res + body_Section + r"""
 <footer>CareerGlow Enterprise · Secure Cloud Infrastructure</footer>
@@ -208,7 +287,7 @@ if (form) {
   form.addEventListener('submit',()=>{
    const b=document.getElementById('submitBtn');b.disabled=true;b.textContent='Optimizing resume…';
    document.getElementById('spinner').style.display='block';
-   document.getElementById('loading').textContent='Analyzing job requirements and formatting professional template…';
+   document.getElementById('loading').textContent='Analyzing job requirements and formatting executive template…';
   });
 }
 </script></body></html>"""
@@ -248,14 +327,14 @@ def ask_ai(resume, job, role):
     key = os.environ.get("OLLAMA_API_KEY", "").strip()
     if not key:
         raise ValueError("Ollama API key not configured.")
-    prompt = f"""You are an elite executive resume writer. Rebuild this resume for the target role: {role}.
+    prompt = f"""You are an elite executive resume writer. Rebuild this resume into a structured executive graphical template for the target role: {role}.
 Job Description: {job or 'Optimize for top corporate ATS standards.'}
 
-Return response split into:
+Return response split strictly into:
 ---REPORT---
 Action items and keyword additions.
 ---RESUME---
-Clean HTML structured resume content (using <h2>, <h3>, <p>, <ul>, <li>, <strong>).
+Clean HTML structured executive resume content (using <h2>, <h3>, <p>, <ul>, <li>, <strong>) representing a multi-section professional resume template.
 
 RESUME TEXT:
 {resume[:18000]}
@@ -291,7 +370,7 @@ JOB DESCRIPTION:
 class Handler(BaseHTTPRequestHandler):
     def get_current_user(self):
         email = paywall.verify_session(self.headers.get("Cookie", ""))
-        return paywall.get_or_create_user(email) if email else None
+        return paywall.get_user(email) if email else None
 
     def send_html(self, body, status=200, cookie=None):
         data = body.encode("utf-8")
@@ -313,27 +392,70 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path == "/logout":
+        parsed_url = urllib.parse.urlparse(self.path)
+        path = parsed_url.path
+        query = parse_qs(parsed_url.query)
+
+        if path == "/logout":
             self.send_response(303)
             self.send_header("Set-Cookie", "session_user=; Path=/; Max-Age=0")
             self.send_header("Location", "/")
             self.end_headers()
             return
-        if self.path == "/manifest.json":
+        if path == "/history":
+            user = self.get_current_user()
+            if not user:
+                self.send_response(303)
+                self.send_header("Location", "/")
+                self.end_headers()
+                return
+            self.send_html(page(user=user, view_mode="history"))
+            return
+        if path == "/view-resume":
+            user = self.get_current_user()
+            if not user:
+                self.send_response(303)
+                self.send_header("Location", "/")
+                self.end_headers()
+                return
+            res_id = query.get("id", [""])[0]
+            resumes = paywall.get_user_resumes(user["email"])
+            target_res = next((r for r in resumes if str(r["id"]) == res_id), None)
+            if not target_res:
+                self.send_html(page(user=user, error="Resume not found."), 404)
+                return
+            self.send_html(page(user=user, analysis_report=target_res["analysis"], recreated_resume=target_res["content"], role=target_res["role"]))
+            return
+        if path == "/manifest.json":
             self.send_json({
-                "name": "CareerGlow Enterprise",
+                "name": "CareerGlow AI Enterprise",
                 "short_name": "CareerGlow",
+                "description": "Professional AI-powered executive resume builder and ATS optimization studio.",
                 "start_url": "/",
                 "display": "standalone",
                 "background_color": "#f8fafc",
                 "theme_color": "#2563eb",
-                "icons": []
+                "icons": [
+                    {"src": "/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable"},
+                    {"src": "/icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable"}
+                ]
             })
             return
-        if self.path == "/sw.js":
-            self.send_response(200, content_type="application/javascript")
+        if path == "/sw.js":
+            sw = b"self.addEventListener('fetch', function(e) {});"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript")
+            self.send_header("Content-Length", str(len(sw)))
             self.end_headers()
-            self.wfile.write(b"self.addEventListener('fetch', function(e) {});")
+            self.wfile.write(sw)
+            return
+        if path == "/icon.svg":
+            svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#2563eb"/><text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" font-size="260" fill="#ffffff">&#10022;</text></svg>'
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Content-Length", str(len(svg)))
+            self.end_headers()
+            self.wfile.write(svg)
             return
 
         user = self.get_current_user()
@@ -343,14 +465,33 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length) if length > 0 else b""
 
-        if self.path == "/login":
+        if self.path == "/signup":
             params = parse_qs(raw.decode("utf-8", "replace"))
             email = (params.get("email", [""])[0]).strip().lower()
             name = (params.get("name", [""])[0]).strip()
-            if not email or "@" not in email:
-                self.send_html(page(error="Invalid email address."), 400)
+            password = (params.get("password", [""])[0]).strip()
+            if not email or "@" not in email or len(password) < 4:
+                self.send_html(page(error="Please provide a valid email and password (min 4 chars)."), 400)
                 return
-            paywall.get_or_create_user(email, name)
+            if paywall.get_user(email):
+                self.send_html(page(error="An account with this email already exists. Please sign in."), 400)
+                return
+            paywall.create_user(email, password, name)
+            token = paywall.sign_session(email)
+            self.send_response(303)
+            self.send_header("Set-Cookie", f"session_user={token}; Path=/; HttpOnly; Max-Age=2592000")
+            self.send_header("Location", "/")
+            self.end_headers()
+            return
+
+        if self.path == "/login":
+            params = parse_qs(raw.decode("utf-8", "replace"))
+            email = (params.get("email", [""])[0]).strip().lower()
+            password = (params.get("password", [""])[0]).strip()
+            user = paywall.get_user(email)
+            if not user or not paywall.verify_password(password, user["password_hash"]):
+                self.send_html(page(error="Invalid email or password."), 401)
+                return
             token = paywall.sign_session(email)
             self.send_response(303)
             self.send_header("Set-Cookie", f"session_user={token}; Path=/; HttpOnly; Max-Age=2592000")
@@ -380,7 +521,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            if not paywall.can_generate_resume(user["email"]):
+            if not paywall.can_generate(user["email"]):
                 self.send_html(page(user=user, error="Free credit used. Please add credit to proceed."), 402)
                 return
             if length <= 0 or length > MAX_FILE + 1_500_000:
@@ -415,7 +556,8 @@ class Handler(BaseHTTPRequestHandler):
                 report_part, resume_part = ai_output, ai_output
 
             paywall.consume_credit(user["email"])
-            updated_user = paywall.get_or_create_user(user["email"])
+            paywall.save_resume(user["email"], role, job, report_part.strip(), resume_part.strip())
+            updated_user = paywall.get_user(user["email"])
             self.send_html(page(user=updated_user, analysis_report=report_part.strip(), recreated_resume=resume_part.strip(), filename=filename, job=job, role=role))
         except ValueError as e:
             self.send_html(page(user=user, error=str(e)), 400)
